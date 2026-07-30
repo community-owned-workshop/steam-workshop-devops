@@ -1,12 +1,12 @@
 version=2
-id=<Steam ID>
+id=&lt;SteamID&gt;
 title=My Mod
 description=[h1]My Mod[/h1]
-description=[url=https://community-owned-workshop.github.io/wiki/creating-a-mod/][img]https://raw.githubusercontent.com/community-owned-workshop/wiki/refs/heads/main/assets/banner-title-seals.png[/img][/url]
+description=[url=https://community-owned-workshop.github.io/wiki/][img]https://raw.githubusercontent.com/community-owned-workshop/wiki/refs/heads/main/assets/banner-title-seals.png[/img][/url]
 description=
 description=[list]
-description=[*] New here? [url=https://github.com/community-owned-workshop/project-zomboid-template/blob/main/docs/getting-started.md]Get started![/url]
-description=[*] [url=https://github.com/community-owned-workshop/project-zomboid-template/blob/main/docs/tools.md]Included Tooling[/url]
+description=[*] New here? [url=docs/getting-started.md]Get started![/url]
+description=[*] [url=docs/tools.md]Included Tooling[/url]
 description=[/list]
 description=
 description=[hr][/hr]

@@ -30,7 +30,7 @@ All tests passed.
 > 🐮 **Which tests are executed here, you wonder?** 🐮
 > 
 > This repository contains a single functionality: a logger and a test for it. So the two tests are testing your 
-> brandnew logger mod.
+> brand-new logger mod.
 
 
 
@@ -41,8 +41,8 @@ All tests passed.
   - `modId`
   - `authors` (so you can get the glory)
   - `workshop` > `id` (once you publish)
-- optionally, edit _description.md_, because this is the long-form desciption of your mod
-- optionally, edit _tools/templates/README.md - this file is your template for the Git repository's _README.md_ and so can contain information only relevant to developers
+- optionally, edit _description.md_, because this is the long-form description of your mod
+- optionally, edit _tools/templates/README.md_ - this file is your template for the Git repository's _README.md_ and so can contain information only relevant to developers
 
 > 🐮 **Can I use `rename-template.ps1 -NewName "NewModName"` later?** 🐮
 > 
@@ -55,7 +55,7 @@ All tests passed.
 - finally, execute `./tools/build.ps1` to:
   - execute the tests
   - update the mod metadata
-  - copy the mod data into the local _**Project Zomboid/mods/** folder
+  - copy the mod data into the local _**Zomboid/mods/**_ folder
 
 > 🎉 **Congratulations!!!** 🎉
 > 
@@ -66,5 +66,8 @@ All tests passed.
 > **Happy modding!**
 
 
+#### 5. (Optional) Auto-Update Steam
+
+- _[See this manual for how to enable this.](https://community-owned-workshop.github.io/wiki/steam-workshop-devops/project-zomboid/)_ The workflows are already present in this template.
 
 

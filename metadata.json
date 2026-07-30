@@ -11,7 +11,7 @@
   "poster": "poster.png",
   "workshop": {
     "version": 2,
-    "id": "<Steam ID>",
+    "id": "&lt;SteamID&gt;",
     "visibility": 2,
     "tags": [
       "Build 42",

@@ -10,7 +10,7 @@ Renames the template and replaces placeholders.
 Executes all unit tests.
 
 ## `build.ps1`
-Runs tests and installs the mod locally.
+Runs tests, generates metadata and installs the mod locally.
 
 ## `generate-metadata.ps1`
 Generates _mod.info_, _README.md_ and _workshop.txt_.
