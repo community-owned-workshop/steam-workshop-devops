@@ -1,3 +1,7 @@
+{{DESCRIPTION}}
+
+---
+
 # {{NAME}}
 
 {{SUMMARY}}
@@ -9,5 +13,3 @@
 - **Authors:** {{AUTHORS}}
 - **Minimum game version:** `{{GAME_VERSION_MIN}}`
 - **Steam Workshop:** [{{WORKSHOP_ID}}]({{WORKSHOP_URL}})
-
-{{DESCRIPTION}}
