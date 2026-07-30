@@ -1,0 +1,34 @@
+version=2
+id=<Steam ID>
+title=My Mod
+description=[h1]My Mod[/h1]
+description=[url=https://community-owned-workshop.github.io/wiki/creating-a-mod/][img]https://raw.githubusercontent.com/community-owned-workshop/wiki/refs/heads/main/assets/banner-title-seals.png[/img][/url]
+description=
+description=This repository can be used as a template for creating new mods for [url=https://store.steampowered.com/agecheck/app/108600/]Project Zomboid[/url].
+description=
+description=Copy this repository contents and execute [b]./tools/setup.ps1[/b] to install Lua and Busted for executing tests. Don't  worry, this will not change your system, but only copy the data into this project.
+description=
+description=Afterwards, [b]./tools/test.ps1[/b] will execute the tests (there are two in this project).
+description=
+description=[b]./tools/build.ps1[/b] will execute the tests and if that was successful, copy the mod Data into the [b]Project Zomboid[/b]  repository.
+description=
+description=[b]./tools/generate-metadata.ps1[/b] will generate the meta data ([i]mod.info[/i], [i]README.md[/i], [i]workshop.txt[/i]) from a common source. This source is
+description=
+description=[list]
+description=[*] [i]metadata.json[/i] - for general info like ID and version
+description=[*] [i]description.md[/i] - for a long description of your mod
+description=[*] [i]tools/templates/README.md[/i] - a template for the README file of this repository; add stuff that is only relevant for the code here
+description=[/list]
+description=You can use [b]./tools/Rename-Template.ps1 -NewName "NewModName"[/b] to rename all folders, files and all text files at once. Note that you technically can use this script to rename the mod again and again, but it might rename wrong positives after you started developing.
+description=
+description=[hr][/hr]
+description=[h2]Technical information[/h2]
+description=[list]
+description=[*][b]Mod ID:[/b] myname.MyMod
+description=[*][b]Version:[/b] 1.0.0
+description=[*][b]Authors:[/b] myname
+description=[*][b]Minimum game version:[/b] 42.0
+description=[*][b]Source:[/b] [url=https://github.com/community-owned-workshop/project-zomboid-template]GitHub[/url]
+description=[/list]
+tags=Build 42;Framework
+visibility=2

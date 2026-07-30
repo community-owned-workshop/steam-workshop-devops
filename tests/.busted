@@ -1,0 +1,6 @@
+return {
+  _all = {
+    ROOT = { "." },
+    coverage = false
+  }
+}

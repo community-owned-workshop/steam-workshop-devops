@@ -1,0 +1,21 @@
+{
+  "name": "My Mod",
+  "modId": "myname.MyMod",
+  "version": "1.0.0",
+  "authors": [
+    "myname"
+  ],
+  "summary": "This is my first COW mod!",
+  "repositoryUrl": "https://github.com/community-owned-workshop/project-zomboid-template",
+  "gameVersionMin": "42.0",
+  "poster": "poster.png",
+  "workshop": {
+    "version": 2,
+    "id": "<Steam ID>",
+    "visibility": 2,
+    "tags": [
+      "Build 42",
+      "Framework"
+    ]
+  }
+}

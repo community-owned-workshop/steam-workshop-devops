@@ -1,0 +1,35 @@
+name: ♨️ Publish to Steam Workshop
+
+on:
+  workflow_dispatch:
+    inputs:
+      changelog:
+        description: Change note shown on Steam.
+        required: false
+        default: Manual Workshop update
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - closed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: steam-workshop
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.merged == true
+    permissions:
+      contents: write
+    uses: community-owned-workshop/steam-workshop-devops/.github/workflows/publish-project-zomboid.yml@v1
+    with:
+      branch: main
+      mod-folder: "[MyMod]"
+      changelog: ${{ github.event_name == 'pull_request_target' && format('{0} (#{1})', github.event.pull_request.title, github.event.pull_request.number) || inputs.changelog }}
+    secrets: inherit
