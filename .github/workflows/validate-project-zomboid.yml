@@ -1,0 +1,157 @@
+name: Validate Project Zomboid Mod
+
+on:
+  workflow_call:
+    inputs:
+      mod-folder:
+        description: Mod directory name below source-path.
+        required: true
+        type: string
+      source-path:
+        description: Directory containing the mod folder.
+        required: false
+        type: string
+        default: source
+      metadata-path:
+        description: Shared metadata JSON.
+        required: false
+        type: string
+        default: metadata.json
+      description-path:
+        description: Markdown Workshop description.
+        required: false
+        type: string
+        default: description.md
+      readme-template-path:
+        description: README template.
+        required: false
+        type: string
+        default: tools/templates/README.md
+      workshop-path:
+        description: Generated workshop.txt.
+        required: false
+        type: string
+        default: workshop/workshop.txt
+      preview-path:
+        description: Workshop preview image.
+        required: false
+        type: string
+        default: workshop/preview.png
+      tests-path:
+        description: Busted test directory.
+        required: false
+        type: string
+        default: tests
+      run-tests:
+        description: Run Busted tests.
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout Changes
+        uses: actions/checkout@v7
+
+      - name: 🧪 Install Test Tools
+        if: inputs.run-tests
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes lua5.4 liblua5.4-dev luarocks
+          sudo luarocks --lua-version=5.4 install busted
+
+      - name: 🔎 Validate JSON
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path . -Filter *.json -Recurse |
+            Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' } |
+            ForEach-Object {
+              Write-Host "Validating $($_.FullName)"
+              Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null
+            }
+
+      - name: 🔎 Validate PowerShell Syntax
+        shell: pwsh
+        run: |
+          $HasErrors = $false
+
+          Get-ChildItem -Path . -Filter *.ps1 -Recurse |
+            ForEach-Object {
+              $Tokens = $null
+              $Errors = $null
+              [System.Management.Automation.Language.Parser]::ParseFile(
+                $_.FullName,
+                [ref] $Tokens,
+                [ref] $Errors
+              ) | Out-Null
+
+              foreach ($ErrorRecord in $Errors) {
+                Write-Error "$($_.FullName): $($ErrorRecord.Message)"
+                $HasErrors = $true
+              }
+            }
+
+          if ($HasErrors) {
+            exit 1
+          }
+
+      - name: 🔎 Validate Shell Scripts
+        shell: bash
+        run: |
+          mapfile -t scripts < <(
+            find . -path ./.git -prune -o -type f -name '*.sh' -print
+          )
+
+          if (( ${#scripts[@]} > 0 )); then
+            shellcheck "${scripts[@]}"
+          fi
+
+      - name: 📝 Generate Metadata
+        uses: community-owned-workshop/steam-workshop-devops/profiles/project-zomboid/metadata@v1
+        with:
+          metadata-path: ${{ inputs.metadata-path }}
+          description-path: ${{ inputs.description-path }}
+          readme-template-path: ${{ inputs.readme-template-path }}
+          workshop-output-path: ${{ inputs.workshop-path }}
+          mod-info-output-path: ${{ format('{0}/{1}/42/mod.info', inputs.source-path, inputs.mod-folder) }}
+
+      - name: 🔎 Check Generated Files
+        shell: bash
+        env:
+          WORKSHOP_PATH: ${{ inputs.workshop-path }}
+          MOD_INFO_PATH: ${{ format('{0}/{1}/42/mod.info', inputs.source-path, inputs.mod-folder) }}
+        run: |
+          if ! git diff --exit-code -- README.md "$WORKSHOP_PATH" "$MOD_INFO_PATH"; then
+            echo "::warning::Generated metadata is outdated. It will be regenerated automatically after the PR is merged."
+          fi
+
+      - name: 🧪 Run Lua Tests
+        if: inputs.run-tests
+        shell: bash
+        env:
+          SOURCE_PATH: ${{ inputs.source-path }}
+          MOD_FOLDER: ${{ inputs.mod-folder }}
+          TESTS_PATH: ${{ inputs.tests-path }}
+        run: |
+          export LUA_PATH="./$SOURCE_PATH/$MOD_FOLDER/42/media/lua/shared/?.lua;./$SOURCE_PATH/$MOD_FOLDER/42/media/lua/client/?.lua;;"
+          busted "$TESTS_PATH"
+
+      - name: 🛄 Prepare Workshop Contents
+        shell: bash
+        env:
+          SOURCE_PATH: ${{ inputs.source-path }}
+          MOD_FOLDER: ${{ inputs.mod-folder }}
+        run: |
+          mkdir -p Contents/mods
+          cp -a "$SOURCE_PATH/$MOD_FOLDER" Contents/mods/
+
+      - name: 🔎 Validate Workshop Package
+        uses: community-owned-workshop/steam-workshop-devops/profiles/project-zomboid@v1
+        with:
+          content-path: Contents
+          metadata-path: ${{ inputs.workshop-path }}
+          preview-path: ${{ inputs.preview-path }}

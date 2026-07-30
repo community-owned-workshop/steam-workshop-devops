@@ -1,0 +1,16 @@
+{
+  "name": "Test Mod",
+  "modId": "cow.TestMod",
+  "version": "1.0.0",
+  "authors": ["COW Initiative"],
+  "summary": "Generator test.",
+  "repositoryUrl": "https://github.com/example/test",
+  "gameVersionMin": "42.0",
+  "poster": "poster.png",
+  "workshop": {
+    "version": 2,
+    "id": "123456789",
+    "visibility": 2,
+    "tags": ["Build 42"]
+  }
+}

@@ -1,0 +1,162 @@
+name: Publish Project Zomboid Mod
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        description: Branch containing the release source.
+        required: false
+        type: string
+        default: main
+      mod-folder:
+        description: Mod directory name below source-path.
+        required: true
+        type: string
+      source-path:
+        description: Directory containing the mod folder.
+        required: false
+        type: string
+        default: source
+      metadata-path:
+        description: Shared metadata JSON.
+        required: false
+        type: string
+        default: metadata.json
+      description-path:
+        description: Markdown Workshop description.
+        required: false
+        type: string
+        default: description.md
+      readme-template-path:
+        description: README template.
+        required: false
+        type: string
+        default: tools/templates/README.md
+      workshop-path:
+        description: Generated workshop.txt.
+        required: false
+        type: string
+        default: workshop/workshop.txt
+      preview-path:
+        description: Workshop preview image.
+        required: false
+        type: string
+        default: workshop/preview.png
+      tests-path:
+        description: Busted test directory.
+        required: false
+        type: string
+        default: tests
+      changelog:
+        description: Steam change note.
+        required: false
+        type: string
+        default: Workshop update
+      environment:
+        description: GitHub environment containing Steam secrets.
+        required: false
+        type: string
+        default: steam
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: ⬇️ Checkout Release Branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+
+      - name: 📝 Generate Metadata
+        uses: community-owned-workshop/steam-workshop-devops/profiles/project-zomboid/metadata@v1
+        with:
+          metadata-path: ${{ inputs.metadata-path }}
+          description-path: ${{ inputs.description-path }}
+          readme-template-path: ${{ inputs.readme-template-path }}
+          workshop-output-path: ${{ inputs.workshop-path }}
+          mod-info-output-path: ${{ format('{0}/{1}/42/mod.info', inputs.source-path, inputs.mod-folder) }}
+
+      - name: ⬆️ Commit Generated Metadata
+        shell: bash
+        env:
+          WORKSHOP_PATH: ${{ inputs.workshop-path }}
+          MOD_INFO_PATH: ${{ format('{0}/{1}/42/mod.info', inputs.source-path, inputs.mod-folder) }}
+        run: |
+          git config user.name "COW Metadata Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -- README.md "$WORKSHOP_PATH" "$MOD_INFO_PATH"
+
+          if git diff --cached --quiet; then
+            echo "Generated metadata is already current."
+            exit 0
+          fi
+
+          git commit -m "Generate project metadata"
+          git push origin "HEAD:${{ inputs.branch }}"
+
+  publish:
+    needs: generate
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: ⬇️ Checkout Generated Version
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: 🧪 Install Test Dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes lua5.4 liblua5.4-dev luarocks
+          sudo luarocks --lua-version=5.4 install busted
+
+      - name: 🧪 Run Tests
+        shell: bash
+        env:
+          SOURCE_PATH: ${{ inputs.source-path }}
+          MOD_FOLDER: ${{ inputs.mod-folder }}
+          TESTS_PATH: ${{ inputs.tests-path }}
+        run: |
+          export LUA_PATH="./$SOURCE_PATH/$MOD_FOLDER/42/media/lua/shared/?.lua;./$SOURCE_PATH/$MOD_FOLDER/42/media/lua/client/?.lua;;"
+          busted "$TESTS_PATH"
+
+      - name: 🛄 Prepare Workshop Contents
+        shell: bash
+        env:
+          SOURCE_PATH: ${{ inputs.source-path }}
+          MOD_FOLDER: ${{ inputs.mod-folder }}
+        run: |
+          mkdir -p Contents/mods
+          cp -a "$SOURCE_PATH/$MOD_FOLDER" Contents/mods/
+
+      - name: 🔎 Validate Workshop Package
+        uses: community-owned-workshop/steam-workshop-devops/profiles/project-zomboid@v1
+        with:
+          content-path: Contents
+          metadata-path: ${{ inputs.workshop-path }}
+          preview-path: ${{ inputs.preview-path }}
+        env:
+          EXPECTED_WORKSHOP_ID: ${{ secrets.STEAM_WORKSHOP_ID }}
+
+      - name: ⬆️ Publish Workshop Item
+        uses: community-owned-workshop/steam-workshop-devops@v1
+        with:
+          app-id: 108600
+          published-file-id: ${{ secrets.STEAM_WORKSHOP_ID }}
+          content-path: Contents
+          metadata-path: ${{ inputs.workshop-path }}
+          preview-path: ${{ inputs.preview-path }}
+          changelog: ${{ inputs.changelog }}
+        env:
+          STEAM_ACCOUNT_NAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}

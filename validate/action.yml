@@ -1,0 +1,29 @@
+name: Validate Steam Workshop Item
+description: Validates generic Steam Workshop content and metadata.
+
+inputs:
+  content-path:
+    description: Path to the directory uploaded as Workshop content.
+    required: true
+  metadata-path:
+    description: Path to the Workshop metadata file.
+    required: true
+  preview-path:
+    description: Optional path to the preview image.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Validate Steam Workshop item
+      shell: bash
+      env:
+        VALIDATION_CONTENT_PATH: ${{ inputs.content-path }}
+        VALIDATION_METADATA_PATH: ${{ inputs.metadata-path }}
+        VALIDATION_PREVIEW_PATH: ${{ inputs.preview-path }}
+      run: |
+        bash "$GITHUB_ACTION_PATH/../scripts/validate-workshop.sh" \
+          "$VALIDATION_CONTENT_PATH" \
+          "$VALIDATION_METADATA_PATH" \
+          "$VALIDATION_PREVIEW_PATH"

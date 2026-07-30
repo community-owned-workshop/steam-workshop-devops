@@ -1,0 +1,66 @@
+name: ✅ Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v7
+
+      - name: 🔎 ShellCheck
+        run: shellcheck entrypoint.sh scripts/*.sh profiles/*/*.sh
+
+      - name: 🔎 Validate PowerShell Syntax
+        shell: pwsh
+        run: |
+          $HasErrors = $false
+
+          Get-ChildItem -Path . -Filter *.ps1 -Recurse |
+            ForEach-Object {
+              $Tokens = $null
+              $Errors = $null
+              [System.Management.Automation.Language.Parser]::ParseFile(
+                $_.FullName,
+                [ref] $Tokens,
+                [ref] $Errors
+              ) | Out-Null
+
+              foreach ($ErrorRecord in $Errors) {
+                Write-Error "$($_.FullName): $($ErrorRecord.Message)"
+                $HasErrors = $true
+              }
+            }
+
+          if ($HasErrors) {
+            exit 1
+          }
+
+      - name: 🧪 Test Metadata Generator
+        uses: ./profiles/project-zomboid/metadata
+        with:
+          metadata-path: fixtures/metadata/metadata.json
+          description-path: fixtures/metadata/description.md
+          readme-template-path: fixtures/metadata/README.template.md
+          readme-output-path: /tmp/metadata-test/README.md
+          workshop-output-path: /tmp/metadata-test/workshop.txt
+          mod-info-output-path: /tmp/metadata-test/mod.info
+
+      - name: 🔎 Check Generated Description
+        shell: bash
+        run: |
+          grep -q '^description=Expected workshop description\.$' /tmp/metadata-test/workshop.txt
+
+          if grep -qE 'Tool .+ was restored|Restore was successful' /tmp/metadata-test/workshop.txt; then
+            echo "::error::Tool output leaked into the Workshop description."
+            exit 1
+          fi

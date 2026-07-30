@@ -1,0 +1,57 @@
+name: Generate Project Zomboid Metadata
+description: Generates README.md, workshop.txt and mod.info from shared project metadata.
+
+inputs:
+  metadata-path:
+    description: Path to metadata.json.
+    required: false
+    default: metadata.json
+  description-path:
+    description: Path to the Markdown description.
+    required: false
+    default: description.md
+  readme-template-path:
+    description: Path to the README template.
+    required: false
+    default: tools/templates/README.md
+  readme-output-path:
+    description: Generated README path.
+    required: false
+    default: README.md
+  workshop-output-path:
+    description: Generated workshop.txt path.
+    required: false
+    default: workshop/workshop.txt
+  mod-info-output-path:
+    description: Generated mod.info path.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Generate Project Zomboid metadata
+      shell: pwsh
+      env:
+        METADATA_PATH: ${{ inputs.metadata-path }}
+        DESCRIPTION_PATH: ${{ inputs.description-path }}
+        README_TEMPLATE_PATH: ${{ inputs.readme-template-path }}
+        README_OUTPUT_PATH: ${{ inputs.readme-output-path }}
+        WORKSHOP_OUTPUT_PATH: ${{ inputs.workshop-output-path }}
+        MOD_INFO_OUTPUT_PATH: ${{ inputs.mod-info-output-path }}
+        DOTNET_ROLL_FORWARD: Major
+      run: |
+        $Arguments = @{
+          MetadataPath = $env:METADATA_PATH
+          DescriptionPath = $env:DESCRIPTION_PATH
+          ReadmeTemplatePath = $env:README_TEMPLATE_PATH
+          ReadmeOutputPath = $env:README_OUTPUT_PATH
+          WorkshopOutputPath = $env:WORKSHOP_OUTPUT_PATH
+          ModInfoOutputPath = $env:MOD_INFO_OUTPUT_PATH
+        }
+
+        & "$env:GITHUB_ACTION_PATH/generate-metadata.ps1" @Arguments

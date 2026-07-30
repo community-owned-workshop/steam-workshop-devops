@@ -1,0 +1,36 @@
+ name: Steam Workshop Publisher
+description: Publishes content and metadata to an existing Steam Workshop item.
+
+inputs:
+  app-id:
+    description: Steam application ID.
+    required: true
+  published-file-id:
+    description: Optional Workshop ID overriding the id in the metadata file.
+    required: false
+    default: ""
+  content-path:
+    description: Path to the directory uploaded as Workshop content.
+    required: true
+  metadata-path:
+    description: Path to the Workshop metadata file.
+    required: true
+  preview-path:
+    description: Optional path to a preview image. Missing files leave the current preview unchanged.
+    required: false
+    default: ""
+  changelog:
+    description: Change note shown on Steam.
+    required: false
+    default: ""
+
+runs:
+  using: docker
+  image: Dockerfile
+  args:
+    - ${{ inputs.app-id }}
+    - ${{ inputs.published-file-id }}
+    - ${{ inputs.content-path }}
+    - ${{ inputs.metadata-path }}
+    - ${{ inputs.preview-path }}
+    - ${{ inputs.changelog }}
