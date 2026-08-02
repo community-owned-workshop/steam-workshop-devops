@@ -1,4 +1,4 @@
- name: Steam Workshop Publisher
+name: Steam Workshop Publisher
 description: Publishes content and metadata to an existing Steam Workshop item.
 
 inputs:
