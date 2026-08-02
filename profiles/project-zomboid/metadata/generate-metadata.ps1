@@ -144,6 +144,12 @@ $ModInfo = @(
     "versionMin=$($Metadata.gameVersionMin)"
 )
 
+foreach ($Dependency in @($Metadata.require)) {
+    if (-not [string]::IsNullOrWhiteSpace($Dependency)) {
+        $ModInfo += "require=$Dependency"
+    }
+}
+
 $WorkshopInfo = @(
     "version=$($Metadata.workshop.version)"
     "id=$($Metadata.workshop.id)"
