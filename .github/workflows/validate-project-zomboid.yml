@@ -71,7 +71,7 @@ jobs:
             Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' } |
             ForEach-Object {
               Write-Host "Validating $($_.FullName)"
-              Get-Content $_.FullName -Raw | ConvertFrom-Json | Out-Null
+              Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json | Out-Null
             }
 
       - name: 🔎 Validate PowerShell Syntax
