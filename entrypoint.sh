@@ -12,6 +12,7 @@ content_folder="$GITHUB_WORKSPACE/$content_path"
 metadata_file="$GITHUB_WORKSPACE/$metadata_path"
 
 # SteamCMD may replace config.vdf during its first update, so bootstrap it first.
+# Never print STEAM_CONFIG_VDF: it contains Steam session/authentication data.
 if [[ -n "${STEAM_CONFIG_VDF:-}" ]]; then
     steamcmd +quit
 
@@ -102,13 +103,43 @@ trap 'rm -f "$item_vdf"' EXIT
     echo '}'
 } > "$item_vdf"
 
+# Safe diagnostics for opaque SteamCMD "Failure" responses. Deliberately do not
+# print passwords, config.vdf, Steam Guard/session values, or the full generated VDF.
+echo "Workshop update diagnostics:"
+printf '  app-id: %s\n' "$app_id"
+printf '  published-file-id: %s\n' "$published_file_id"
+printf '  content-folder: %s\n' "$content_folder"
+if [[ -n "$preview_path" && -f "$GITHUB_WORKSPACE/$preview_path" ]]; then
+    printf '  preview-file: %s\n' "$GITHUB_WORKSPACE/$preview_path"
+else
+    echo '  preview-file: <none>'
+fi
+printf '  title: %s\n' "${title:-<none>}"
+printf '  visibility: %s\n' "${visibility_number:-<unchanged>}"
+printf '  description-length: %s characters\n' "${#description}"
+printf '  changenote-length: %s characters\n' "${#changelog}"
+printf '  content-files: %s\n' "$(find "$content_folder" -type f | wc -l | tr -d ' ')"
+printf '  content-bytes: %s\n' "$(du -sb "$content_folder" | cut -f1)"
+
 if [[ -n "${STEAM_CONFIG_VDF:-}" ]]; then
     login_arguments=("$STEAM_ACCOUNT_NAME")
 else
     login_arguments=("$STEAM_ACCOUNT_NAME" "$STEAM_PASSWORD")
 fi
 
+# Temporarily disable errexit so we can print useful, sanitized diagnostics when
+# SteamCMD returns its otherwise opaque "Failed to update workshop item (Failure)".
+set +e
 steamcmd \
     +login "${login_arguments[@]}" \
     +workshop_build_item "$item_vdf" \
     +quit
+steam_exit_code=$?
+set -e
+
+if [[ $steam_exit_code -ne 0 ]]; then
+    echo "SteamCMD failed with exit code $steam_exit_code." >&2
+    echo "SteamCMD log files present (contents are intentionally not dumped because they may contain account/session data):" >&2
+    find "$HOME/.local/share/Steam/logs" -maxdepth 1 -type f -printf '  %f (%s bytes)\n' 2>/dev/null | sort >&2 || true
+    exit "$steam_exit_code"
+fi
