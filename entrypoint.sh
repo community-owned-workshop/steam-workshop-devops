@@ -139,7 +139,22 @@ set -e
 
 if [[ $steam_exit_code -ne 0 ]]; then
     echo "SteamCMD failed with exit code $steam_exit_code." >&2
-    echo "SteamCMD log files present (contents are intentionally not dumped because they may contain account/session data):" >&2
+
+    workshop_log="$HOME/.local/share/Steam/logs/workshop_log.txt"
+    if [[ -f "$workshop_log" ]]; then
+        echo "Sanitized workshop_log.txt diagnostics:" >&2
+        # workshop_log.txt normally contains UGC result/status information, but
+        # filter aggressively before exposing anything in a public Actions log.
+        grep -Ei 'error|fail|workshop|ugc|result' "$workshop_log" 2>/dev/null \
+            | sed -E \
+                -e 's/(password|passwd|token|secret|auth|credential|session|login)[=: ]+[^ ]+/\1=<redacted>/Ig' \
+                -e 's/([A-Fa-f0-9]{32,})/<redacted>/g' \
+            >&2 || echo "  <no matching diagnostic lines>" >&2
+    else
+        echo "workshop_log.txt was not found." >&2
+    fi
+
+    echo "SteamCMD log files present (contents are otherwise intentionally not dumped):" >&2
     find "$HOME/.local/share/Steam/logs" -maxdepth 1 -type f -printf '  %f (%s bytes)\n' 2>/dev/null | sort >&2 || true
     exit "$steam_exit_code"
 fi
