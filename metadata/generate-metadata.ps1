@@ -3,13 +3,13 @@ param(
     [string] $DescriptionPath = "description.md",
     [string] $ReadmeTemplatePath = "tools/templates/README.md",
     [string] $ReadmeOutputPath = "README.md",
-    [string] $WorkshopOutputPath = "workshop/workshop.txt",
-    [Parameter(Mandatory = $true)]
-    [string] $ModInfoOutputPath
+    [string] $WorkshopOutputPath = "workshop/workshop.txt"
 )
 
 $ErrorActionPreference = "Stop"
 
+# All paths are resolved relative to the caller repository. This keeps the
+# metadata action reusable from game-specific profiles and directly from mods.
 $Root = if ($env:GITHUB_WORKSPACE) {
     $env:GITHUB_WORKSPACE
 }
@@ -26,18 +26,6 @@ function Resolve-ProjectPath {
 
     return Join-Path $Root $Path
 }
-
-$MetadataPath = Resolve-ProjectPath $MetadataPath
-$DescriptionPath = Resolve-ProjectPath $DescriptionPath
-$ReadmeTemplatePath = Resolve-ProjectPath $ReadmeTemplatePath
-$ReadmeOutputPath = Resolve-ProjectPath $ReadmeOutputPath
-$WorkshopOutputPath = Resolve-ProjectPath $WorkshopOutputPath
-$ModInfoOutputPath = Resolve-ProjectPath $ModInfoOutputPath
-$ToolManifestPath = Join-Path $PSScriptRoot ".config/dotnet-tools.json"
-
-$Metadata = Get-Content $MetadataPath -Raw | ConvertFrom-Json
-$Description = (Get-Content $DescriptionPath -Raw).Trim()
-$Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 
 function Assert-Value {
     param(
@@ -62,12 +50,19 @@ function Write-GeneratedFile {
     }
 
     $Content = ($Lines -join "`n") + "`n"
-    [System.IO.File]::WriteAllText($Path, $Content, $Utf8NoBom)
+    [System.IO.File]::WriteAllText(
+        $Path,
+        $Content,
+        [System.Text.UTF8Encoding]::new($false)
+    )
 }
 
 function ConvertTo-SteamBBCode {
     param([string] $InputPath)
 
+    # The converter is intentionally kept in this generic layer: Markdown is
+    # the source of truth for both README.md and Steam Workshop descriptions.
+    $ToolManifestPath = Join-Path $PSScriptRoot ".config/dotnet-tools.json"
     $OutputPath = [System.IO.Path]::GetTempFileName()
 
     try {
@@ -103,25 +98,30 @@ function ConvertTo-SteamBBCode {
     }
 }
 
+$MetadataPath = Resolve-ProjectPath $MetadataPath
+$DescriptionPath = Resolve-ProjectPath $DescriptionPath
+$ReadmeTemplatePath = Resolve-ProjectPath $ReadmeTemplatePath
+$ReadmeOutputPath = Resolve-ProjectPath $ReadmeOutputPath
+$WorkshopOutputPath = Resolve-ProjectPath $WorkshopOutputPath
+
+$Metadata = Get-Content $MetadataPath -Raw | ConvertFrom-Json
+$Description = (Get-Content $DescriptionPath -Raw).Trim()
+
+# These fields are intentionally game agnostic. Game profiles may validate and
+# consume additional properties from the same metadata.json.
 Assert-Value "name" $Metadata.name
-Assert-Value "modId" $Metadata.modId
 Assert-Value "version" $Metadata.version
 Assert-Value "summary" $Metadata.summary
 Assert-Value "repositoryUrl" $Metadata.repositoryUrl
-Assert-Value "gameVersionMin" $Metadata.gameVersionMin
-Assert-Value "poster" $Metadata.poster
 Assert-Value "workshop.id" $Metadata.workshop.id
-Assert-Value "workshop.version" $Metadata.workshop.version
 
 $Authors = @($Metadata.authors)
 if ($Authors.Count -eq 0) {
     throw "metadata property 'authors' needs at least one entry."
 }
-
 foreach ($Author in $Authors) {
     Assert-Value "authors" $Author
 }
-
 $AuthorsText = $Authors -join ", "
 
 if ([string]::IsNullOrWhiteSpace($Description)) {
@@ -134,48 +134,31 @@ if ($Metadata.workshop.visibility -notin 0, 1, 2, 3) {
 
 $WorkshopDescription = ConvertTo-SteamBBCode $DescriptionPath
 
-$ModInfo = @(
-    "name=$($Metadata.name)"
-    "id=$($Metadata.modId)"
-    "author=$AuthorsText"
-    "description=$($Metadata.summary)"
-    "poster=$($Metadata.poster)"
-    "modversion=$($Metadata.version)"
-    "versionMin=$($Metadata.gameVersionMin)"
-)
-
-foreach ($Dependency in @($Metadata.require)) {
-    if (-not [string]::IsNullOrWhiteSpace($Dependency)) {
-        $ModInfo += "require=$Dependency"
-    }
-}
-
+# workshop.txt is consumed by the generic SteamCMD publisher. The description
+# may span multiple lines, therefore every line gets its own description= entry.
 $WorkshopInfo = @(
-    "version=$($Metadata.workshop.version)"
     "id=$($Metadata.workshop.id)"
     "title=$($Metadata.name)"
     "description=[h1]$($Metadata.name)[/h1]"
 )
-
 foreach ($DescriptionLine in ($WorkshopDescription -split "\r?\n")) {
     $WorkshopInfo += "description=$DescriptionLine"
 }
-
 $WorkshopInfo += @(
     "description="
     "description=[hr][/hr]"
     "description=[h2]Technical information[/h2]"
     "description=[list]"
-    "description=[*][b]Mod ID:[/b] $($Metadata.modId)"
     "description=[*][b]Version:[/b] $($Metadata.version)"
     "description=[*][b]Authors:[/b] $AuthorsText"
-    "description=[*][b]Minimum game version:[/b] $($Metadata.gameVersionMin)"
     "description=[*][b]Source:[/b] [url=$($Metadata.repositoryUrl)]GitHub[/url]"
     "description=[/list]"
     "tags=$(@($Metadata.workshop.tags) -join ';')"
     "visibility=$($Metadata.workshop.visibility)"
 )
 
+# README templates can provide repository specific framing while description.md
+# remains the shared human-readable description used by Steam as well.
 $Readme = @"
 <!-- Generated file. Edit metadata.json, description.md, or the README template instead. -->
 
@@ -183,24 +166,21 @@ $(Get-Content $ReadmeTemplatePath -Raw)
 "@
 
 $Tokens = @{
-    "{{NAME}}"             = $Metadata.name
-    "{{MOD_ID}}"           = $Metadata.modId
-    "{{VERSION}}"          = $Metadata.version
-    "{{AUTHORS}}"          = $AuthorsText
-    "{{SUMMARY}}"          = $Metadata.summary
-    "{{DESCRIPTION}}"      = $Description
-    "{{GAME_VERSION_MIN}}" = $Metadata.gameVersionMin
-    "{{REPOSITORY_URL}}"   = $Metadata.repositoryUrl
-    "{{WORKSHOP_ID}}"      = $Metadata.workshop.id
-    "{{WORKSHOP_URL}}"     = "https://steamcommunity.com/sharedfiles/filedetails/?id=$($Metadata.workshop.id)"
+    "{{NAME}}"           = $Metadata.name
+    "{{VERSION}}"        = $Metadata.version
+    "{{AUTHORS}}"        = $AuthorsText
+    "{{SUMMARY}}"        = $Metadata.summary
+    "{{DESCRIPTION}}"    = $Description
+    "{{REPOSITORY_URL}}" = $Metadata.repositoryUrl
+    "{{WORKSHOP_ID}}"    = $Metadata.workshop.id
+    "{{WORKSHOP_URL}}"   = "https://steamcommunity.com/sharedfiles/filedetails/?id=$($Metadata.workshop.id)"
 }
 
 foreach ($Token in $Tokens.GetEnumerator()) {
     $Readme = $Readme.Replace($Token.Key, [string] $Token.Value)
 }
 
-Write-GeneratedFile $ModInfoOutputPath $ModInfo
 Write-GeneratedFile $WorkshopOutputPath $WorkshopInfo
 Write-GeneratedFile $ReadmeOutputPath @($Readme.TrimEnd())
 
-Write-Host "Generated Project Zomboid metadata."
+Write-Host "Generated generic Steam Workshop metadata."
