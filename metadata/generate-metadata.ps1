@@ -94,7 +94,9 @@ function ConvertTo-SteamBBCode {
             Pop-Location
         }
 
-        return (Get-Content $OutputPath -Raw).Trim()
+        # The converter writes UTF-8 without a BOM. Windows PowerShell 5.1 would
+        # otherwise read that using the active ANSI code page and corrupt Unicode.
+        return (Get-Content $OutputPath -Raw -Encoding UTF8).Trim()
     }
     finally {
         Remove-Item $OutputPath -ErrorAction SilentlyContinue
@@ -107,8 +109,10 @@ $ReadmeTemplatePath = Resolve-ProjectPath $ReadmeTemplatePath
 $ReadmeOutputPath = Resolve-ProjectPath $ReadmeOutputPath
 $WorkshopOutputPath = Resolve-ProjectPath $WorkshopOutputPath
 
-$Metadata = Get-Content $MetadataPath -Raw | ConvertFrom-Json
-$Description = (Get-Content $DescriptionPath -Raw).Trim()
+# Explicit UTF-8 is important for local generation under Windows PowerShell 5.1,
+# whose default Get-Content encoding is the current ANSI code page for BOM-less files.
+$Metadata = Get-Content $MetadataPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$Description = (Get-Content $DescriptionPath -Raw -Encoding UTF8).Trim()
 
 # These fields are intentionally game agnostic. Game profiles may validate and
 # consume additional properties from the same metadata.json.
@@ -165,7 +169,7 @@ $WorkshopInfo += @(
 $Readme = @"
 <!-- Generated file. Edit metadata.json, description.md, or the README template instead. -->
 
-$(Get-Content $ReadmeTemplatePath -Raw)
+$(Get-Content $ReadmeTemplatePath -Raw -Encoding UTF8)
 "@
 
 $Tokens = @{
