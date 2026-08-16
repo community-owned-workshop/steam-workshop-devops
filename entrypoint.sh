@@ -62,6 +62,25 @@ case "$visibility" in
         ;;
 esac
 
+# SteamCMD's workshop_build_item accepts physical newlines and backslashes in
+# multiline description values, but embedded ASCII double quotes cannot be
+# represented reliably: standard KeyValues-style \" escaping is not decoded as
+# expected by the Workshop uploader and can truncate the published description.
+# Fail explicitly rather than silently publishing corrupted Workshop metadata.
+validate_no_double_quotes() {
+    local field_name="$1"
+    local value="$2"
+    if [[ "$value" == *'"'* ]]; then
+        echo "Workshop $field_name contains an unsupported ASCII double quote (\")." >&2
+        echo "Remove or replace the double quote before publishing." >&2
+        exit 1
+    fi
+}
+
+validate_no_double_quotes "title" "$title"
+validate_no_double_quotes "description" "$description"
+validate_no_double_quotes "changenote" "$changelog"
+
 item_vdf="$(mktemp)"
 trap 'rm -f "$item_vdf"' EXIT
 
@@ -76,11 +95,8 @@ trap 'rm -f "$item_vdf"' EXIT
         printf '    "previewfile" "%s"\n' "$GITHUB_WORKSPACE/$preview_path"
     fi
 
-    # Scrap Mechanic/SteamCMD Workshop descriptions are intentionally written
-    # verbatim. In particular, do not translate newlines to \n and do not double
-    # backslashes: the Workshop page renders those escape sequences literally.
-    # Description metadata must therefore not contain ASCII double quotes while
-    # we are testing SteamCMD's multiline KeyValues handling.
+    # Workshop text is written verbatim. Physical newlines and backslashes are
+    # intentional; translating them to \n or \\ makes Steam display them literally.
     [[ -z "$title" ]] || printf '    "title" "%s"\n' "$title"
     [[ -z "$description" ]] || printf '    "description" "%s"\n' "$description"
     [[ -z "$visibility_number" ]] || printf '    "visibility" "%s"\n' "$visibility_number"
