@@ -31,7 +31,7 @@ runs:
   using: composite
   steps:
     - name: Generate Steam Workshop metadata
-      uses: community-owned-workshop/steam-workshop-devops/metadata@feature/scrap-mechanic
+      uses: community-owned-workshop/steam-workshop-devops/metadata@v1.2
       with:
         metadata-path: ${{ inputs.metadata-path }}
         description-path: ${{ inputs.description-path }}

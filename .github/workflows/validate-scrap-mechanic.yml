@@ -89,7 +89,7 @@ jobs:
           fi
 
       - name: 📝 Generate Metadata
-        uses: community-owned-workshop/steam-workshop-devops/profiles/scrap-mechanic/metadata@feature/scrap-mechanic
+        uses: community-owned-workshop/steam-workshop-devops/profiles/scrap-mechanic/metadata@v1.2
         with:
           metadata-path: ${{ inputs.metadata-path }}
           description-path: ${{ inputs.description-path }}
