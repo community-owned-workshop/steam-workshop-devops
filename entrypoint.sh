@@ -121,6 +121,20 @@ printf '  changenote-length: %s characters\n' "${#changelog}"
 printf '  content-files: %s\n' "$(find "$content_folder" -type f | wc -l | tr -d ' ')"
 printf '  content-bytes: %s\n' "$(du -sb "$content_folder" | cut -f1)"
 
+# Description/VDF diagnostics are safe because workshop descriptions are public
+# metadata. Show only lines around characters that can affect VDF parsing instead
+# of dumping the complete generated VDF (which may grow to contain other fields).
+echo "  description lines containing quotes/backslashes (raw -> VDF escaped):"
+description_line_number=0
+while IFS= read -r description_line || [[ -n "$description_line" ]]; do
+    description_line_number=$((description_line_number + 1))
+    if [[ "$description_line" == *'"'* || "$description_line" == *'\'* ]]; then
+        escaped_description_line="$(printf '%s' "$description_line" | escape_vdf)"
+        printf '    line %d raw:     %s\n' "$description_line_number" "$description_line"
+        printf '    line %d escaped: %s\n' "$description_line_number" "$escaped_description_line"
+    fi
+done <<< "$description"
+
 if [[ -n "${STEAM_CONFIG_VDF:-}" ]]; then
     login_arguments=("$STEAM_ACCOUNT_NAME")
 else
