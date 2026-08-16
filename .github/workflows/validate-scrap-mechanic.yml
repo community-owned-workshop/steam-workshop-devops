@@ -1,0 +1,140 @@
+name: Validate Scrap Mechanic Mod
+
+on:
+  workflow_call:
+    inputs:
+      source-path:
+        description: Directory uploaded as Scrap Mechanic Workshop content.
+        required: false
+        type: string
+        default: source
+      metadata-path:
+        description: Shared metadata JSON.
+        required: false
+        type: string
+        default: metadata.json
+      description-path:
+        description: Markdown Workshop description.
+        required: false
+        type: string
+        default: description.md
+      readme-template-path:
+        description: README template.
+        required: false
+        type: string
+        default: tools/templates/README.md
+      workshop-path:
+        description: Generated workshop.txt.
+        required: false
+        type: string
+        default: workshop/workshop.txt
+      preview-path:
+        description: Workshop preview image.
+        required: false
+        type: string
+        default: workshop/preview.jpg
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout Changes
+        uses: actions/checkout@v7
+
+      - name: 🔎 Validate JSON
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path . -Filter *.json -Recurse |
+            Where-Object { $_.FullName -notmatch '[\\/]\.git[\\/]' } |
+            ForEach-Object {
+              Write-Host "Validating $($_.FullName)"
+              Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null
+            }
+
+      - name: 🔎 Validate PowerShell Syntax
+        shell: pwsh
+        run: |
+          $HasErrors = $false
+
+          Get-ChildItem -Path . -Filter *.ps1 -Recurse |
+            ForEach-Object {
+              $Tokens = $null
+              $Errors = $null
+              [System.Management.Automation.Language.Parser]::ParseFile(
+                $_.FullName,
+                [ref] $Tokens,
+                [ref] $Errors
+              ) | Out-Null
+
+              foreach ($ErrorRecord in $Errors) {
+                Write-Error "$($_.FullName): $($ErrorRecord.Message)"
+                $HasErrors = $true
+              }
+            }
+
+          if ($HasErrors) {
+            exit 1
+          }
+
+      - name: 🔎 Validate Shell Scripts
+        shell: bash
+        run: |
+          mapfile -t scripts < <(
+            find . -path ./.git -prune -o -type f -name '*.sh' -print
+          )
+
+          if (( ${#scripts[@]} > 0 )); then
+            shellcheck "${scripts[@]}"
+          fi
+
+      - name: 📝 Generate Metadata
+        uses: community-owned-workshop/steam-workshop-devops/profiles/scrap-mechanic/metadata@feature/scrap-mechanic
+        with:
+          metadata-path: ${{ inputs.metadata-path }}
+          description-path: ${{ inputs.description-path }}
+          readme-template-path: ${{ inputs.readme-template-path }}
+          workshop-output-path: ${{ inputs.workshop-path }}
+          mod-description-output-path: ${{ format('{0}/description.json', inputs.source-path) }}
+
+      - name: 🔎 Check Generated Files
+        shell: bash
+        env:
+          WORKSHOP_PATH: ${{ inputs.workshop-path }}
+        run: |
+          # source/description.json is a generated packaging file and may be
+          # intentionally ignored by the consuming repository. README.md and
+          # workshop.txt are committed artifacts and should stay reproducible.
+          if ! git diff --exit-code -- README.md "$WORKSHOP_PATH"; then
+            echo "::warning::Generated metadata is outdated. Regenerate it before merging."
+          fi
+
+      - name: 🔎 Validate Scrap Mechanic Package
+        shell: pwsh
+        env:
+          SOURCE_PATH: ${{ inputs.source-path }}
+          PREVIEW_PATH: ${{ inputs.preview-path }}
+        run: |
+          if (-not (Test-Path -LiteralPath $env:SOURCE_PATH -PathType Container)) {
+            throw "Scrap Mechanic source directory does not exist: $env:SOURCE_PATH"
+          }
+
+          $DescriptionPath = Join-Path $env:SOURCE_PATH "description.json"
+          if (-not (Test-Path -LiteralPath $DescriptionPath -PathType Leaf)) {
+            throw "Generated Scrap Mechanic description.json does not exist: $DescriptionPath"
+          }
+
+          $Description = Get-Content -LiteralPath $DescriptionPath -Raw -Encoding UTF8 | ConvertFrom-Json
+          foreach ($Property in @("fileId", "localId", "name", "type", "version")) {
+            if ($null -eq $Description.$Property -or [string]::IsNullOrWhiteSpace([string]$Description.$Property)) {
+              throw "description.json is missing required property '$Property'."
+            }
+          }
+
+          if ($Description.version -ne 2) {
+            throw "description.json version must be 2."
+          }
+
+          if (-not (Test-Path -LiteralPath $env:PREVIEW_PATH -PathType Leaf)) {
+            throw "Workshop preview image does not exist: $env:PREVIEW_PATH"
+          }
