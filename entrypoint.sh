@@ -37,24 +37,6 @@ read_value() {
     sed -n "s/^${key}=//p" "$metadata_file" | head -n 1 | tr -d '\r'
 }
 
-# Escape only quotes for a quoted Valve KeyValues/VDF string. Keep physical
-# newlines and backslashes exactly as supplied by the Workshop metadata. Steam's
-# Workshop UI displays literal \n and doubled backslashes instead of decoding
-# them in description text.
-escape_vdf() {
-    awk '
-        BEGIN { first = 1 }
-        {
-            gsub(/"/, "\\\"")
-            if (!first) {
-                printf "\n"
-            }
-            printf "%s", $0
-            first = 0
-        }
-    '
-}
-
 if [[ -z "$published_file_id" ]]; then
     published_file_id="$(read_value id)"
 fi
@@ -94,14 +76,15 @@ trap 'rm -f "$item_vdf"' EXIT
         printf '    "previewfile" "%s"\n' "$GITHUB_WORKSPACE/$preview_path"
     fi
 
-    [[ -z "$title" ]] ||
-        printf '    "title" "%s"\n' "$(printf '%s' "$title" | escape_vdf)"
-    [[ -z "$description" ]] ||
-        printf '    "description" "%s"\n' "$(printf '%s' "$description" | escape_vdf)"
-    [[ -z "$visibility_number" ]] ||
-        printf '    "visibility" "%s"\n' "$visibility_number"
-    [[ -z "$changelog" ]] ||
-        printf '    "changenote" "%s"\n' "$(printf '%s' "$changelog" | escape_vdf)"
+    # Scrap Mechanic/SteamCMD Workshop descriptions are intentionally written
+    # verbatim. In particular, do not translate newlines to \n and do not double
+    # backslashes: the Workshop page renders those escape sequences literally.
+    # Description metadata must therefore not contain ASCII double quotes while
+    # we are testing SteamCMD's multiline KeyValues handling.
+    [[ -z "$title" ]] || printf '    "title" "%s"\n' "$title"
+    [[ -z "$description" ]] || printf '    "description" "%s"\n' "$description"
+    [[ -z "$visibility_number" ]] || printf '    "visibility" "%s"\n' "$visibility_number"
+    [[ -z "$changelog" ]] || printf '    "changenote" "%s"\n' "$changelog"
 
     echo '}'
 } > "$item_vdf"
@@ -153,8 +136,6 @@ if [[ $steam_exit_code -ne 0 ]]; then
     workshop_log="$HOME/.local/share/Steam/logs/workshop_log.txt"
     if [[ -f "$workshop_log" ]]; then
         echo "Sanitized workshop_log.txt diagnostics:" >&2
-        # workshop_log.txt normally contains UGC result/status information, but
-        # filter aggressively before exposing anything in a public Actions log.
         grep -Ei 'error|fail|workshop|ugc|result' "$workshop_log" 2>/dev/null \
             | sed -E \
                 -e 's/(password|passwd|token|secret|auth|credential|session|login)[=: ]+[^ ]+/\1=<redacted>/Ig' \
