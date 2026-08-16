@@ -14,13 +14,16 @@ $sm = $metadata.scrapMechanic
 if (-not $sm) { throw "metadata.json is missing scrapMechanic metadata." }
 if (-not $sm.localId) { throw "metadata.json is missing scrapMechanic.localId." }
 if (-not $metadata.workshop.id) { throw "metadata.json is missing workshop.id." }
+if (-not $metadata.summary) { throw "metadata.json is missing summary." }
 
 # `version` is the Scrap Mechanic description.json format version, not the mod's
 # semantic version. Current files produced by the Scrap Mechanic Mod Tool use 2.
+# The generic summary is also the short description shown by Scrap Mechanic, so
+# there is no separate game-specific description field to keep in sync.
 $description = [ordered]@{
     allow_add_mods = if ($null -ne $sm.allowAddMods) { [bool]$sm.allowAddMods } else { $true }
     custom_icons   = if ($null -ne $sm.customIcons) { [bool]$sm.customIcons } else { $false }
-    description    = if ($sm.description) { [string]$sm.description } else { [string]$metadata.summary }
+    description    = [string]$metadata.summary
     fileId         = [long]$metadata.workshop.id
     localId        = [string]$sm.localId
     name           = [string]$metadata.name
