@@ -1,0 +1,50 @@
+name: Generate Scrap Mechanic Metadata
+description: Generates generic Steam Workshop metadata plus Scrap Mechanic description.json.
+
+inputs:
+  metadata-path:
+    description: Path to metadata.json.
+    required: false
+    default: metadata.json
+  description-path:
+    description: Path to the Markdown description.
+    required: false
+    default: description.md
+  readme-template-path:
+    description: Path to the README template.
+    required: false
+    default: tools/templates/README.md
+  readme-output-path:
+    description: Generated README path.
+    required: false
+    default: README.md
+  workshop-output-path:
+    description: Generated workshop.txt path.
+    required: false
+    default: workshop/workshop.txt
+  mod-description-output-path:
+    description: Generated Scrap Mechanic description.json path.
+    required: false
+    default: source/description.json
+
+runs:
+  using: composite
+  steps:
+    - name: Generate Steam Workshop metadata
+      uses: community-owned-workshop/steam-workshop-devops/metadata@feature/scrap-mechanic
+      with:
+        metadata-path: ${{ inputs.metadata-path }}
+        description-path: ${{ inputs.description-path }}
+        readme-template-path: ${{ inputs.readme-template-path }}
+        readme-output-path: ${{ inputs.readme-output-path }}
+        workshop-output-path: ${{ inputs.workshop-output-path }}
+
+    - name: Generate Scrap Mechanic description.json
+      shell: pwsh
+      env:
+        METADATA_PATH: ${{ inputs.metadata-path }}
+        MOD_DESCRIPTION_OUTPUT_PATH: ${{ inputs.mod-description-output-path }}
+      run: |
+        & "$env:GITHUB_ACTION_PATH/generate-description.ps1" `
+          -MetadataPath $env:METADATA_PATH `
+          -OutputPath $env:MOD_DESCRIPTION_OUTPUT_PATH
