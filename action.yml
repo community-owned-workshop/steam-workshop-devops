@@ -23,6 +23,10 @@ inputs:
     description: Change note shown on Steam.
     required: false
     default: ""
+  debug:
+    description: Enable verbose publisher diagnostics, including the generated Workshop item VDF. Does not print Steam credentials or session data.
+    required: false
+    default: "false"
 
 runs:
   using: docker
@@ -34,3 +38,4 @@ runs:
     - ${{ inputs.metadata-path }}
     - ${{ inputs.preview-path }}
     - ${{ inputs.changelog }}
+    - ${{ inputs.debug }}

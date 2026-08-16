@@ -1,5 +1,5 @@
-name: Generate Project Zomboid Metadata
-description: Generates generic Steam Workshop metadata plus Project Zomboid mod.info.
+name: Generate Scrap Mechanic Metadata
+description: Generates generic Steam Workshop metadata plus Scrap Mechanic description.json.
 
 inputs:
   metadata-path:
@@ -22,14 +22,14 @@ inputs:
     description: Generated workshop.txt path.
     required: false
     default: workshop/workshop.txt
-  mod-info-output-path:
-    description: Generated Project Zomboid mod.info path.
-    required: true
+  mod-description-output-path:
+    description: Generated Scrap Mechanic description.json path.
+    required: false
+    default: source/description.json
 
 runs:
   using: composite
   steps:
-    # Generic README/workshop generation is shared with other games.
     - name: Generate Steam Workshop metadata
       uses: community-owned-workshop/steam-workshop-devops/metadata@feature/scrap-mechanic
       with:
@@ -39,13 +39,12 @@ runs:
         readme-output-path: ${{ inputs.readme-output-path }}
         workshop-output-path: ${{ inputs.workshop-output-path }}
 
-    # Project Zomboid alone needs mod.info; keep that concern inside the profile.
-    - name: Generate Project Zomboid mod.info
+    - name: Generate Scrap Mechanic description.json
       shell: pwsh
       env:
         METADATA_PATH: ${{ inputs.metadata-path }}
-        MOD_INFO_OUTPUT_PATH: ${{ inputs.mod-info-output-path }}
+        MOD_DESCRIPTION_OUTPUT_PATH: ${{ inputs.mod-description-output-path }}
       run: |
-        & "$env:GITHUB_ACTION_PATH/generate-mod-info.ps1" `
+        & "$env:GITHUB_ACTION_PATH/generate-description.ps1" `
           -MetadataPath $env:METADATA_PATH `
-          -ModInfoOutputPath $env:MOD_INFO_OUTPUT_PATH
+          -OutputPath $env:MOD_DESCRIPTION_OUTPUT_PATH
