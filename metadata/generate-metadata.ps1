@@ -50,10 +50,13 @@ function Write-GeneratedFile {
     }
 
     $Content = ($Lines -join "`n") + "`n"
+
+    # Write a UTF-8 BOM so Windows/Steam-side consumers reliably detect Unicode
+    # instead of interpreting UTF-8 bytes as the active ANSI code page.
     [System.IO.File]::WriteAllText(
         $Path,
         $Content,
-        [System.Text.UTF8Encoding]::new($false)
+        [System.Text.UTF8Encoding]::new($true)
     )
 }
 
