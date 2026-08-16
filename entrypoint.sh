@@ -37,9 +37,9 @@ read_value() {
     sed -n "s/^${key}=//p" "$metadata_file" | head -n 1 | tr -d '\r'
 }
 
-# Escape a value for a quoted Valve KeyValues/VDF string. In particular,
-# multiline metadata must use the literal \n escape inside the quoted value;
-# writing physical newlines there can make SteamCMD truncate or misparse it.
+# Escape quotes and backslashes for a quoted Valve KeyValues/VDF string while
+# preserving physical newlines. Steam Workshop accepts multiline description
+# values this way; literal \n sequences are displayed as text by the Workshop UI.
 escape_vdf() {
     awk '
         BEGIN { first = 1 }
@@ -47,7 +47,7 @@ escape_vdf() {
             gsub(/\\/, "\\\\")
             gsub(/"/, "\\\"")
             if (!first) {
-                printf "\\n"
+                printf "\n"
             }
             printf "%s", $0
             first = 0
@@ -107,7 +107,7 @@ trap 'rm -f "$item_vdf"' EXIT
 } > "$item_vdf"
 
 # Safe diagnostics for opaque SteamCMD "Failure" responses. Deliberately do not
-# print passwords, config.vdf, Steam Guard/session values, or the full generated VDF.
+# print passwords, config.vdf, Steam Guard/session values, or config.vdf contents.
 echo "Workshop update diagnostics:"
 printf '  app-id: %s\n' "$app_id"
 printf '  published-file-id: %s\n' "$published_file_id"
@@ -123,6 +123,14 @@ printf '  description-length: %s characters\n' "${#description}"
 printf '  changenote-length: %s characters\n' "${#changelog}"
 printf '  content-files: %s\n' "$(find "$content_folder" -type f | wc -l | tr -d ' ')"
 printf '  content-bytes: %s\n' "$(du -sb "$content_folder" | cut -f1)"
+
+# Keep this verbose diagnostic until the Scrap Mechanic publisher is stable.
+# The generated item VDF contains only public Workshop metadata and local runner
+# paths; Steam credentials/session data are never written to this file.
+echo 'Generated workshop item VDF:'
+sed 's/^/  | /' "$item_vdf"
+
+echo 'End generated workshop item VDF.'
 
 if [[ -n "${STEAM_CONFIG_VDF:-}" ]]; then
     login_arguments=("$STEAM_ACCOUNT_NAME")
