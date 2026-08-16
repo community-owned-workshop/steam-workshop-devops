@@ -37,14 +37,14 @@ read_value() {
     sed -n "s/^${key}=//p" "$metadata_file" | head -n 1 | tr -d '\r'
 }
 
-# Escape quotes and backslashes for a quoted Valve KeyValues/VDF string while
-# preserving physical newlines. Steam Workshop accepts multiline description
-# values this way; literal \n sequences are displayed as text by the Workshop UI.
+# Escape only quotes for a quoted Valve KeyValues/VDF string. Keep physical
+# newlines and backslashes exactly as supplied by the Workshop metadata. Steam's
+# Workshop UI displays literal \n and doubled backslashes instead of decoding
+# them in description text.
 escape_vdf() {
     awk '
         BEGIN { first = 1 }
         {
-            gsub(/\\/, "\\\\")
             gsub(/"/, "\\\"")
             if (!first) {
                 printf "\n"
@@ -129,7 +129,6 @@ printf '  content-bytes: %s\n' "$(du -sb "$content_folder" | cut -f1)"
 # paths; Steam credentials/session data are never written to this file.
 echo 'Generated workshop item VDF:'
 sed 's/^/  | /' "$item_vdf"
-
 echo 'End generated workshop item VDF.'
 
 if [[ -n "${STEAM_CONFIG_VDF:-}" ]]; then
