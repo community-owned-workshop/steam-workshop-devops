@@ -38,7 +38,7 @@ $json = $description | ConvertTo-Json -Depth 10
 [System.IO.File]::WriteAllText(
     $OutputPath,
     $json + [Environment]::NewLine,
-    [System.Text.UTF8Encoding]::new($false)
+    [System.Text.UTF8Encoding]::new($true)
 )
 
 Write-Host "Generated Scrap Mechanic metadata: $OutputPath"
