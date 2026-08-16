@@ -7,9 +7,19 @@ content_path="${3:?content-path is required}"
 metadata_path="${4:?metadata-path is required}"
 preview_path="$5"
 changelog="$6"
+debug="${7:-false}"
 
 content_folder="$GITHUB_WORKSPACE/$content_path"
 metadata_file="$GITHUB_WORKSPACE/$metadata_path"
+
+case "${debug,,}" in
+    true|1|yes) debug_enabled=true ;;
+    false|0|no|"") debug_enabled=false ;;
+    *)
+        echo "Unsupported debug value: $debug (expected true or false)." >&2
+        exit 1
+        ;;
+esac
 
 # SteamCMD may replace config.vdf during its first update, so bootstrap it first.
 # Never print STEAM_CONFIG_VDF: it contains Steam session/authentication data.
@@ -62,10 +72,9 @@ case "$visibility" in
         ;;
 esac
 
-# SteamCMD's workshop_build_item accepts physical newlines and backslashes in
-# multiline description values, but embedded ASCII double quotes cannot be
-# represented reliably: standard KeyValues-style \" escaping is not decoded as
-# expected by the Workshop uploader and can truncate the published description.
+# SteamCMD's workshop_build_item appears to parse this KeyValues file without
+# escape-sequence support. Physical newlines and backslashes work, while \" is
+# not decoded as an embedded quote and can truncate the published description.
 # Fail explicitly rather than silently publishing corrupted Workshop metadata.
 validate_no_double_quotes() {
     local field_name="$1"
@@ -105,30 +114,29 @@ trap 'rm -f "$item_vdf"' EXIT
     echo '}'
 } > "$item_vdf"
 
-# Safe diagnostics for opaque SteamCMD "Failure" responses. Deliberately do not
-# print passwords, config.vdf, Steam Guard/session values, or config.vdf contents.
-echo "Workshop update diagnostics:"
-printf '  app-id: %s\n' "$app_id"
-printf '  published-file-id: %s\n' "$published_file_id"
-printf '  content-folder: %s\n' "$content_folder"
-if [[ -n "$preview_path" && -f "$GITHUB_WORKSPACE/$preview_path" ]]; then
-    printf '  preview-file: %s\n' "$GITHUB_WORKSPACE/$preview_path"
-else
-    echo '  preview-file: <none>'
+if $debug_enabled; then
+    # Verbose diagnostics are opt-in. The generated item VDF contains only
+    # Workshop metadata and local runner paths; credentials/session data are
+    # never written to this file.
+    echo "Workshop update diagnostics:"
+    printf '  app-id: %s\n' "$app_id"
+    printf '  published-file-id: %s\n' "$published_file_id"
+    printf '  content-folder: %s\n' "$content_folder"
+    if [[ -n "$preview_path" && -f "$GITHUB_WORKSPACE/$preview_path" ]]; then
+        printf '  preview-file: %s\n' "$GITHUB_WORKSPACE/$preview_path"
+    else
+        echo '  preview-file: <none>'
+    fi
+    printf '  title: %s\n' "${title:-<none>}"
+    printf '  visibility: %s\n' "${visibility_number:-<unchanged>}"
+    printf '  description-length: %s characters\n' "${#description}"
+    printf '  changenote-length: %s characters\n' "${#changelog}"
+    printf '  content-files: %s\n' "$(find "$content_folder" -type f | wc -l | tr -d ' ')"
+    printf '  content-bytes: %s\n' "$(du -sb "$content_folder" | cut -f1)"
+    echo 'Generated workshop item VDF:'
+    sed 's/^/  | /' "$item_vdf"
+    echo 'End generated workshop item VDF.'
 fi
-printf '  title: %s\n' "${title:-<none>}"
-printf '  visibility: %s\n' "${visibility_number:-<unchanged>}"
-printf '  description-length: %s characters\n' "${#description}"
-printf '  changenote-length: %s characters\n' "${#changelog}"
-printf '  content-files: %s\n' "$(find "$content_folder" -type f | wc -l | tr -d ' ')"
-printf '  content-bytes: %s\n' "$(du -sb "$content_folder" | cut -f1)"
-
-# Keep this verbose diagnostic until the Scrap Mechanic publisher is stable.
-# The generated item VDF contains only public Workshop metadata and local runner
-# paths; Steam credentials/session data are never written to this file.
-echo 'Generated workshop item VDF:'
-sed 's/^/  | /' "$item_vdf"
-echo 'End generated workshop item VDF.'
 
 if [[ -n "${STEAM_CONFIG_VDF:-}" ]]; then
     login_arguments=("$STEAM_ACCOUNT_NAME")
